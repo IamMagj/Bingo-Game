@@ -1,9 +1,0 @@
-{
-  "appId": "com.tufamilia.bingo3d",
-  "appName": "Bingo 3D",
-  "webDir": "public",
-  "bundledWebRuntime": false,
-  "server": {
-    "androidScheme": "https"
-  }
-}
