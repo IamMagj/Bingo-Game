@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Bingo 3D Multijugador</title>
+<link rel="stylesheet" href="/css/style.css" />
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div class="toast-area" id="toast-area"></div>
+
+<!-- ==================== LOBBY ==================== -->
+<section id="screen-lobby">
+  <div class="lobby-box card-panel">
+    <h1 class="lobby-title">🎱 Bingo 3D</h1>
+    <p class="lobby-subtitle">Bingo multijugador en tiempo real</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="create">Crear sala</button>
+      <button class="tab-btn" data-tab="join">Unirse</button>
+    </div>
+
+    <!-- Crear sala -->
+    <div id="tab-create">
+      <div class="form-group">
+        <label>Tu nombre</label>
+        <input type="text" id="create-name" placeholder="Ej: María" maxlength="24" />
+      </div>
+
+      <div class="settings-grid">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Modo de victoria</label>
+          <select id="opt-winmode">
+            <option value="both">Línea + Bingo</option>
+            <option value="line">Solo Línea</option>
+            <option value="bingo">Solo Bingo</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Forma del bombo</label>
+          <select id="opt-cagestyle">
+            <option value="sphere">Esfera semitransparente</option>
+            <option value="cage">Jaula metálica</option>
+          </select>
+        </div>
+        <div class="row">
+          <span>Marcado automático</span>
+          <label class="switch"><input type="checkbox" id="opt-automark" checked /><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <span>Ver cartones rivales</span>
+          <label class="switch"><input type="checkbox" id="opt-rivals" /><span class="slider"></span></label>
+        </div>
+        <div class="row">
+          <span>Permitir opciones individuales</span>
+          <label class="switch"><input type="checkbox" id="opt-individual" /><span class="slider"></span></label>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="btn-create-room" style="width:100%">Crear sala</button>
+    </div>
+
+    <!-- Unirse -->
+    <div id="tab-join" class="hidden">
+      <div class="form-group">
+        <label>Tu nombre</label>
+        <input type="text" id="join-name" placeholder="Ej: Carlos" maxlength="24" />
+      </div>
+      <div class="form-group">
+        <label>Código de sala</label>
+        <input type="text" id="join-code" placeholder="ABC123" maxlength="6" style="text-transform:uppercase;letter-spacing:3px;text-align:center;font-size:1.2rem" />
+      </div>
+      <button class="btn-primary" id="btn-join-room" style="width:100%">Unirse a la sala</button>
+    </div>
+
+    <p class="error-msg" id="lobby-error"></p>
+  </div>
+</section>
+
+<!-- ==================== SALA DE ESPERA ==================== -->
+<section id="screen-room" class="hidden">
+  <div class="room-box card-panel">
+    <p class="panel-title" style="text-align:center">Código de sala</p>
+    <div class="room-code-display">
+      <span id="room-code-text">------</span>
+      <button class="btn-ghost copy-btn" id="btn-copy-code">Copiar 📋</button>
+    </div>
+
+    <p class="panel-title">Jugadores</p>
+    <ul class="player-list" id="player-list"></ul>
+
+    <div id="creator-options" class="hidden">
+      <p class="panel-title">Opciones de la sala</p>
+      <div class="settings-grid" id="room-settings-summary"></div>
+    </div>
+
+    <div id="individual-options" class="hidden row" style="background:var(--bg2);padding:10px 14px;border-radius:10px;justify-content:space-between;align-items:center;display:flex;margin-top:10px">
+      <span>Mi marcado automático</span>
+      <label class="switch"><input type="checkbox" id="my-automark" /><span class="slider"></span></label>
+    </div>
+
+    <div class="buy-row">
+      <input type="number" id="buy-count" min="1" max="100" value="1" />
+      <button class="btn-secondary" id="btn-buy-cards">Comprar cartones</button>
+      <span id="my-card-count" style="color:var(--text-dim);font-size:0.85rem">0 cartones</span>
+    </div>
+
+    <div class="room-actions">
+      <button class="btn-primary" id="btn-start-game" style="flex:1">Iniciar partida</button>
+      <button class="btn-ghost" id="btn-leave-room">Salir</button>
+    </div>
+    <p class="error-msg" id="room-error"></p>
+  </div>
+</section>
+
+<!-- ==================== JUEGO ==================== -->
+<section id="screen-game" class="hidden">
+
+  <!-- Panel izquierdo: tablero 1-90 + historial -->
+  <aside id="panel-left" class="card-panel">
+    <p class="panel-title">Última bola</p>
+    <div class="last-ball" id="last-ball">-</div>
+
+    <p class="panel-title">Historial</p>
+    <div class="history-strip" id="history-strip"></div>
+
+    <p class="panel-title">Tablero 1-90</p>
+    <div class="number-board" id="number-board"></div>
+  </aside>
+
+  <!-- Panel central: escena 3D -->
+  <main id="panel-center">
+    <div id="cage-container"></div>
+    <div class="draw-controls" id="draw-controls-creator">
+      <button class="btn-primary" id="btn-draw-manual">🎱 Extraer número</button>
+      <button class="btn-secondary" id="btn-autoplay-toggle">▶ Auto-jugar</button>
+      <select id="autoplay-interval">
+        <option value="2">2s</option>
+        <option value="3" selected>3s</option>
+        <option value="5">5s</option>
+        <option value="8">8s</option>
+      </select>
+    </div>
+    <div class="cage-hint">Arrastra para rotar el bombo · rueda para zoom</div>
+  </main>
+
+  <!-- Panel derecho: cartones -->
+  <aside id="panel-right" class="card-panel">
+    <div class="card-nav">
+      <button class="btn-ghost" id="btn-prev-card">◀</button>
+      <span id="card-nav-label">Cartón 1/1</span>
+      <button class="btn-ghost" id="btn-next-card">▶</button>
+    </div>
+    <table class="bingo-card" id="bingo-card-table"></table>
+    <button class="btn-primary claim-btn hidden" id="btn-claim-win" style="width:100%;margin-top:10px">🏆 ¡Reclamar premio!</button>
+
+    <div id="rival-section" class="hidden" style="margin-top:16px">
+      <p class="panel-title">Cartones rivales</p>
+      <div class="rival-tabs" id="rival-tabs"></div>
+      <table class="bingo-card" id="rival-card-table" style="margin-top:8px"></table>
+    </div>
+  </aside>
+</section>
+
+<div class="win-banner hidden" id="win-banner">
+  <div class="win-card">
+    <h2 id="win-title">¡BINGO!</h2>
+    <p id="win-subtitle">Ganador</p>
+    <button class="btn-primary" id="btn-close-win" style="margin-top:16px">Cerrar</button>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
